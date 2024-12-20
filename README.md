@@ -39,7 +39,7 @@ Ensure your CORS policy is set to allow requests from your Obsidian instance. In
 ## Settings
 
 - **API Key**: Your Hoarder API key (required)
-- **API Endpoint**: The Hoarder API endpoint (default: https://api.gethoarder.com)
+- **API Endpoint**: The Hoarder API endpoint (default: https://api.hoarder.app/api/v1)
 - **Sync Folder**: The folder where bookmark notes will be created (default: "Hoarder")
 - **Sync Interval**: How often to sync in minutes (default: 60)
 

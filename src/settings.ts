@@ -17,7 +17,7 @@ export interface HoarderSettings {
 
 export const DEFAULT_SETTINGS: HoarderSettings = {
   apiKey: "",
-  apiEndpoint: "https://api.gethoarder.com/api/v1",
+  apiEndpoint: "https://api.hoarder.app/api/v1",
   syncFolder: "Hoarder",
   attachmentsFolder: "Hoarder/attachments",
   syncIntervalMinutes: 60,
