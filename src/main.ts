@@ -1,0 +1,579 @@
+import { App, Plugin, Notice, Events } from "obsidian";
+import {
+  HoarderSettings,
+  DEFAULT_SETTINGS,
+  HoarderSettingTab,
+} from "./settings";
+
+interface HoarderTag {
+  id: string;
+  name: string;
+  attachedBy: "ai" | "human";
+}
+
+interface HoarderBookmarkContent {
+  type: "link" | "text" | "asset" | "unknown";
+  url?: string;
+  title?: string;
+  description?: string;
+  imageUrl?: string;
+  imageAssetId?: string;
+  screenshotAssetId?: string;
+  fullPageArchiveAssetId?: string;
+  videoAssetId?: string;
+  favicon?: string;
+  htmlContent?: string;
+  crawledAt?: string;
+  text?: string;
+  sourceUrl?: string;
+  assetType?: "image" | "pdf";
+  assetId?: string;
+  fileName?: string;
+}
+
+interface HoarderBookmark {
+  id: string;
+  createdAt: string;
+  title: string | null;
+  archived: boolean;
+  favourited: boolean;
+  taggingStatus: "success" | "failure" | "pending" | null;
+  note: string | null;
+  summary: string | null;
+  tags: HoarderTag[];
+  content: HoarderBookmarkContent;
+}
+
+interface HoarderResponse {
+  bookmarks: HoarderBookmark[];
+  total: number;
+  hasMore: boolean;
+}
+
+export default class HoarderPlugin extends Plugin {
+  settings: HoarderSettings;
+  syncIntervalId: number;
+  isSyncing: boolean = false;
+  skippedFiles: number = 0;
+  events: Events = new Events();
+
+  async onload() {
+    await this.loadSettings();
+
+    // Add settings tab
+    this.addSettingTab(new HoarderSettingTab(this.app, this));
+
+    // Start periodic sync
+    this.startPeriodicSync();
+  }
+
+  onunload() {
+    // Clear the sync interval when plugin is disabled
+    if (this.syncIntervalId) {
+      window.clearInterval(this.syncIntervalId);
+    }
+  }
+
+  async loadSettings() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings);
+  }
+
+  startPeriodicSync() {
+    // Clear existing interval if any
+    if (this.syncIntervalId) {
+      window.clearInterval(this.syncIntervalId);
+    }
+
+    // Convert minutes to milliseconds
+    const interval = this.settings.syncIntervalMinutes * 60 * 1000;
+
+    // Perform initial sync
+    this.syncBookmarks();
+
+    // Set up periodic sync
+    this.syncIntervalId = window.setInterval(() => {
+      this.syncBookmarks();
+    }, interval);
+  }
+
+  async fetchBookmarks(
+    page: number = 1,
+    limit: number = 100
+  ): Promise<HoarderResponse> {
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+    });
+
+    if (this.settings.excludeArchived) {
+      queryParams.append("archived", "false");
+    }
+
+    if (this.settings.onlyFavorites) {
+      queryParams.append("favourited", "true");
+    }
+
+    const response = await fetch(
+      `${this.settings.apiEndpoint}/bookmarks?${queryParams.toString()}`,
+      {
+        headers: {
+          Authorization: `Bearer ${this.settings.apiKey}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json() as Promise<HoarderResponse>;
+  }
+
+  getBookmarkTitle(bookmark: HoarderBookmark): string {
+    // Try main title first
+    if (bookmark.title) {
+      return bookmark.title;
+    }
+
+    // Try content based on type
+    if (bookmark.content.type === "link") {
+      // For links, try content title, then URL
+      if (bookmark.content.title) {
+        return bookmark.content.title;
+      }
+      if (bookmark.content.url) {
+        try {
+          const url = new URL(bookmark.content.url);
+          // Use pathname without extension as title
+          const pathTitle = url.pathname
+            .split("/")
+            .pop()
+            ?.replace(/\.[^/.]+$/, "") // Remove file extension
+            ?.replace(/-|_/g, " "); // Replace dashes and underscores with spaces
+          if (pathTitle) {
+            return pathTitle;
+          }
+          // Fallback to hostname
+          return url.hostname.replace(/^www\./, "");
+        } catch {
+          return bookmark.content.url;
+        }
+      }
+    } else if (bookmark.content.type === "text") {
+      // For text content, use first line or first few words
+      if (bookmark.content.text) {
+        const firstLine = bookmark.content.text.split("\n")[0];
+        if (firstLine.length <= 100) {
+          return firstLine;
+        }
+        return firstLine.substring(0, 97) + "...";
+      }
+    } else if (bookmark.content.type === "asset") {
+      // For assets, use filename or source URL
+      if (bookmark.content.fileName) {
+        return bookmark.content.fileName.replace(/\.[^/.]+$/, ""); // Remove file extension
+      }
+      if (bookmark.content.sourceUrl) {
+        try {
+          const url = new URL(bookmark.content.sourceUrl);
+          return url.pathname.split("/").pop() || url.hostname;
+        } catch {
+          return bookmark.content.sourceUrl;
+        }
+      }
+    }
+
+    // Fallback to ID with timestamp
+    return `Bookmark-${bookmark.id}-${
+      new Date(bookmark.createdAt).toISOString().split("T")[0]
+    }`;
+  }
+
+  async extractNotesFromFile(
+    filePath: string
+  ): Promise<{ currentNotes: string | null; originalNotes: string | null }> {
+    try {
+      const content = await this.app.vault.adapter.read(filePath);
+
+      // Extract notes from the content
+      const notesMatch = content.match(/## Notes\n\n([\s\S]*?)(?=\n##|\n\[|$)/);
+      const currentNotes = notesMatch ? notesMatch[1].trim() : null;
+
+      // Extract original notes from frontmatter
+      const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+      if (frontmatterMatch) {
+        const frontmatter = frontmatterMatch[1];
+        const originalNoteMatch = frontmatter.match(/^original_note: (.*)$/m);
+        const originalNotes = originalNoteMatch
+          ? originalNoteMatch[1].trim()
+          : null;
+        return { currentNotes, originalNotes };
+      }
+
+      return { currentNotes, originalNotes: null };
+    } catch (error) {
+      console.error("Error reading file:", error);
+      return { currentNotes: null, originalNotes: null };
+    }
+  }
+
+  async updateBookmarkInHoarder(
+    bookmarkId: string,
+    note: string
+  ): Promise<boolean> {
+    try {
+      const response = await fetch(
+        `${this.settings.apiEndpoint}/bookmarks/${bookmarkId}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${this.settings.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            note: note,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error updating bookmark in Hoarder:", error);
+      return false;
+    }
+  }
+
+  private setSyncing(value: boolean) {
+    this.isSyncing = value;
+    this.events.trigger("sync-state-change", value);
+  }
+
+  async syncBookmarks(): Promise<{ success: boolean; message: string }> {
+    if (this.isSyncing) {
+      return { success: false, message: "Sync already in progress" };
+    }
+
+    if (!this.settings.apiKey) {
+      return { success: false, message: "Hoarder API key not configured" };
+    }
+
+    this.setSyncing(true);
+    let totalBookmarks = 0;
+    this.skippedFiles = 0;
+    let updatedInHoarder = 0;
+    let excludedByTags = 0;
+
+    try {
+      // Create sync folder if it doesn't exist
+      const folderPath = this.settings.syncFolder;
+      if (!(await this.app.vault.adapter.exists(folderPath))) {
+        await this.app.vault.createFolder(folderPath);
+      }
+
+      let page = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        const result = await this.fetchBookmarks(page);
+        const bookmarks = result.bookmarks || [];
+        hasMore = result.hasMore;
+
+        // Process each bookmark
+        for (const bookmark of bookmarks) {
+          // Skip if bookmark has any excluded tags
+          if (!bookmark.favourited && this.settings.excludedTags.length > 0) {
+            const bookmarkTags = bookmark.tags.map(tag => tag.name.toLowerCase());
+            const hasExcludedTag = this.settings.excludedTags.some(
+              excludedTag => bookmarkTags.includes(excludedTag.toLowerCase())
+            );
+            if (hasExcludedTag) {
+              excludedByTags++;
+              console.log(`Skipping bookmark ${bookmark.id} with tags ${bookmarkTags.join(', ')} due to excluded tag: ${this.settings.excludedTags.join(', ')}`);
+              continue;
+            }
+          }
+
+          const title = this.getBookmarkTitle(bookmark);
+          const fileName = `${folderPath}/${this.sanitizeFileName(
+            title,
+            bookmark.createdAt
+          )}.md`;
+
+          const fileExists = await this.app.vault.adapter.exists(fileName);
+
+          if (fileExists) {
+            // Check for local changes to notes if bi-directional sync is enabled
+            if (this.settings.syncNotesToHoarder) {
+              const { currentNotes, originalNotes } = await this.extractNotesFromFile(fileName);
+              const remoteNotes = bookmark.note || "";
+
+              // Only update if notes have changed from their original version
+              if (
+                currentNotes !== null &&
+                originalNotes !== null &&
+                currentNotes !== originalNotes &&
+                currentNotes !== remoteNotes
+              ) {
+                // Local notes have changed from original, update in Hoarder
+                const updated = await this.updateBookmarkInHoarder(
+                  bookmark.id,
+                  currentNotes
+                );
+                if (updated) {
+                  updatedInHoarder++;
+                  bookmark.note = currentNotes; // Update the bookmark object with local notes
+                }
+              }
+            }
+
+            if (this.settings.updateExistingFiles) {
+              const content = await this.formatBookmarkAsMarkdown(bookmark, title);
+              await this.app.vault.adapter.write(fileName, content);
+              totalBookmarks++;
+            } else {
+              this.skippedFiles++;
+            }
+          } else {
+            const content = await this.formatBookmarkAsMarkdown(bookmark, title);
+            await this.app.vault.create(fileName, content);
+            totalBookmarks++;
+          }
+        }
+
+        page++;
+      }
+
+      // Update last sync timestamp
+      this.settings.lastSyncTimestamp = Date.now();
+      await this.saveSettings();
+
+      let message = `Successfully synced ${totalBookmarks} bookmark${
+        totalBookmarks === 1 ? "" : "s"
+      }`;
+      if (this.skippedFiles > 0) {
+        message += ` (skipped ${this.skippedFiles} existing file${
+          this.skippedFiles === 1 ? "" : "s"
+        })`;
+      }
+      if (updatedInHoarder > 0) {
+        message += ` and updated ${updatedInHoarder} note${
+          updatedInHoarder === 1 ? "" : "s"
+        } in Hoarder`;
+      }
+      if (excludedByTags > 0) {
+        message += `, excluded ${excludedByTags} bookmark${
+          excludedByTags === 1 ? "" : "s"
+        } by tags`;
+      }
+
+      return {
+        success: true,
+        message,
+      };
+    } catch (error) {
+      console.error("Error syncing bookmarks:", error);
+      return {
+        success: false,
+        message: `Error syncing: ${error.message}`,
+      };
+    } finally {
+      this.setSyncing(false);
+      this.skippedFiles = 0;
+    }
+  }
+
+  sanitizeFileName(title: string, created_at: string): string {
+    // Format the date as YYYY-MM-DD
+    const date = new Date(created_at);
+    const dateStr = date.toISOString().split("T")[0]; // This is 10 characters
+
+    // Sanitize the title
+    let sanitizedTitle = title
+      .replace(/[\\/:*?"<>|]/g, "-") // Replace invalid characters with dash
+      .replace(/\s+/g, "-") // Replace spaces with dash
+      .replace(/-+/g, "-") // Replace multiple dashes with single dash
+      .replace(/^-|-$/g, ""); // Remove dashes from start and end
+
+    // Calculate how much space we have for the title
+    // 50 (max) - 10 (date) - 1 (dash) - 3 (.md) = 36 characters for title
+    const maxTitleLength = 36;
+
+    if (sanitizedTitle.length > maxTitleLength) {
+      // If title is too long, try to cut at a word boundary
+      const truncated = sanitizedTitle.substring(0, maxTitleLength);
+      const lastDash = truncated.lastIndexOf("-");
+      if (lastDash > maxTitleLength / 2) {
+        // If we can find a reasonable word break, use it
+        sanitizedTitle = truncated.substring(0, lastDash);
+      } else {
+        // Otherwise just truncate
+        sanitizedTitle = truncated;
+      }
+    }
+
+    return `${dateStr}-${sanitizedTitle}`;
+  }
+
+  async downloadImage(url: string, assetId: string, title: string): Promise<string | null> {
+    try {
+      // Create attachments folder if it doesn't exist
+      if (!(await this.app.vault.adapter.exists(this.settings.attachmentsFolder))) {
+        await this.app.vault.createFolder(this.settings.attachmentsFolder);
+      }
+
+      // Get file extension from URL or default to jpg
+      const extension = url.split('.').pop()?.toLowerCase() || 'jpg';
+      const safeExtension = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension) ? extension : 'jpg';
+      
+      // Create a safe filename
+      const safeTitle = this.sanitizeFileName(title, new Date().toISOString()).split('-').slice(1).join('-');
+      const fileName = `${assetId}-${safeTitle}.${safeExtension}`;
+      const filePath = `${this.settings.attachmentsFolder}/${fileName}`;
+
+      // Check if file already exists
+      if (await this.app.vault.adapter.exists(filePath)) {
+        return filePath;
+      }
+
+      // Download the image
+      const headers: Record<string, string> = {};
+      // Check if this is a Hoarder asset URL by checking if it's from the same domain
+      const apiDomain = new URL(this.settings.apiEndpoint).origin;
+      if (url.startsWith(apiDomain)) {
+        headers['Authorization'] = `Bearer ${this.settings.apiKey}`;
+      }
+
+      const response = await fetch(url, { headers });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      
+      const buffer = await response.arrayBuffer();
+      await this.app.vault.adapter.writeBinary(filePath, buffer);
+      
+      return filePath;
+    } catch (error) {
+      console.error("Error downloading image:", error);
+      return null;
+    }
+  }
+
+  async formatBookmarkAsMarkdown(bookmark: HoarderBookmark, title: string): Promise<string> {
+    const url = bookmark.content.type === 'link' ? bookmark.content.url : bookmark.content.sourceUrl;
+    const description = bookmark.content.type === 'link' ? bookmark.content.description : bookmark.content.text;
+    const tags = bookmark.tags.map(tag => tag.name);
+
+    // Helper function to get asset URL
+    const getAssetUrl = (assetId: string): string => {
+      // Remove /v1 and any trailing slashes from the API endpoint
+      const baseUrl = this.settings.apiEndpoint.replace(/\/v1\/?$/, '');
+      return `${baseUrl}/assets/${assetId}`;
+    };
+
+    // Helper function to escape YAML values
+    const escapeYaml = (str: string | null | undefined): string => {
+      if (!str) return '';
+      // If string contains newlines or special characters, use block scalar
+      if (str.includes('\n') || /[:#{}\[\],&*?|<>=!%@`]/.test(str)) {
+        return `|\n  ${str.replace(/\n/g, '\n  ')}`;
+      }
+      // For simple strings, just wrap in quotes if needed
+      if (str.includes('"')) {
+        return `'${str}'`;
+      }
+      if (str.includes("'") || /^[ \t]|[ \t]$/.test(str)) {
+        return `"${str.replace(/"/g, '\\"')}"`;
+      }
+      return str;
+    };
+
+    // Helper function to escape tag values
+    const escapeTag = (tag: string): string => {
+      // Always quote tags to handle spaces and special characters
+      if (tag.includes('"')) {
+        return `'${tag}'`;
+      }
+      return `"${tag}"`;
+    };
+
+    let content = `---
+url: ${escapeYaml(url)}
+title: ${escapeYaml(title)}
+date: ${new Date(bookmark.createdAt).toISOString()}
+tags:
+  - ${tags.map(escapeTag).join('\n  - ')}
+note: ${escapeYaml(bookmark.note)}
+original_note: ${escapeYaml(bookmark.note)}
+summary: ${escapeYaml(bookmark.summary)}
+---
+
+# ${title}
+`;
+
+    // Handle images
+    if (bookmark.content.type === 'asset' && bookmark.content.assetType === 'image') {
+      // If we have an asset ID, download and use local path
+      if (bookmark.content.assetId) {
+        const assetUrl = getAssetUrl(bookmark.content.assetId);
+        const imagePath = await this.downloadImage(
+          assetUrl,
+          bookmark.content.assetId,
+          title
+        );
+        if (imagePath) {
+          content += `\n![${title}](${imagePath})\n`;
+        }
+      }
+      // Otherwise use source URL directly
+      else if (bookmark.content.sourceUrl) {
+        content += `\n![${title}](${bookmark.content.sourceUrl})\n`;
+      }
+    } else if (bookmark.content.type === 'link') {
+      // For link types, only download Hoarder-hosted images
+      if (bookmark.content.imageAssetId) {
+        const assetUrl = getAssetUrl(bookmark.content.imageAssetId);
+        const imagePath = await this.downloadImage(
+          assetUrl,
+          bookmark.content.imageAssetId,
+          title
+        );
+        if (imagePath) {
+          content += `\n![${title}](${imagePath})\n`;
+        }
+      }
+      // Use external image URL directly
+      else if (bookmark.content.imageUrl) {
+        content += `\n![${title}](${bookmark.content.imageUrl})\n`;
+      }
+    }
+
+    // Add summary if available
+    if (bookmark.summary) {
+      content += `\n## Summary\n\n${bookmark.summary}\n`;
+    }
+
+    // Add description if available
+    if (description) {
+      content += `\n## Description\n\n${description}\n`;
+    }
+
+    // Add note if available
+    if (bookmark.note) {
+      content += `\n## Notes\n\n${bookmark.note}\n`;
+    }
+
+    // Add link if available (and it's not just an image)
+    if (url && bookmark.content.type !== 'asset') {
+      content += `\n[Visit Link](${url})\n`;
+    }
+
+    return content;
+  }
+}
