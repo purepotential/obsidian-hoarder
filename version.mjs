@@ -1,5 +1,8 @@
 import { readFileSync, writeFileSync } from "fs";
 import { execSync } from "child_process";
+import promptSync from "prompt-sync";
+
+const prompt = promptSync();
 
 // Get version argument
 const newVersion = process.argv[2];
@@ -34,17 +37,19 @@ try {
   // Git commands
   execSync("git add manifest.json package.json");
   execSync(`git commit -m "chore: bump version to ${newVersion}"`);
-  execSync(`git tag -a ${newVersion} -m "${newVersion}"`);
+  execSync(`git tag -a ${newVersion} -m "Version ${newVersion}"`);
   console.log(`Created git tag v${newVersion}`);
 
   console.log("\nNext steps:");
   console.log("1. Push the changes: git push");
   console.log("2. Push the tag: git push origin --tags");
 
-  const answer = await prompt("Do this automatically? (y/n)");
-  if (answer === "y") {
+  const answer = prompt("Do this automatically? (y/n) ").toLowerCase();
+  if (answer === "y" || answer === "yes") {
+    console.log("\nPushing changes and tags...");
     execSync("git push");
     execSync("git push origin --tags");
+    console.log("Done!");
   }
 } catch (error) {
   console.error("Error:", error.message);
