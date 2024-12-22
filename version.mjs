@@ -32,12 +32,12 @@ try {
     // Git commands
     execSync('git add manifest.json package.json');
     execSync(`git commit -m "chore: bump version to ${newVersion}"`);
-    execSync(`git tag -a v${newVersion} -m "Version ${newVersion}"`);
+    execSync(`git tag -a ${newVersion} -m "${newVersion}"`);
     console.log(`Created git tag v${newVersion}`);
 
     console.log('\nNext steps:');
     console.log('1. Push the changes: git push');
-    console.log('2. Push the tag: git push origin v' + newVersion);
+    console.log('2. Push the tag: git push origin --tags');
     console.log('3. Create a new release on GitHub with the tag');
 
 } catch (error) {
