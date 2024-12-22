@@ -19,6 +19,9 @@ await fs.mkdir('dist', { recursive: true });
 // Copy manifest.json to dist
 await fs.copyFile('manifest.json', 'dist/manifest.json');
 
+// Copy styles.css to dist
+await fs.copyFile('styles.css', 'dist/styles.css');
+
 const context = await esbuild.context({
     banner: {
         js: banner,

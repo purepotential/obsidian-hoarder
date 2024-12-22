@@ -1,0 +1,41 @@
+.hoarder-wide-input {
+  width: 300px;
+}
+
+.hoarder-medium-input {
+  width: 200px;
+}
+
+.hoarder-small-input {
+  width: 100px;
+}
+
+.suggestion-dropdown {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-height: 200px;
+  overflow-y: auto;
+  width: 200px;
+  position: absolute;
+  z-index: 1000;
+  display: block;
+  opacity: 1;
+  transition: opacity 150ms ease-in-out;
+}
+
+.suggestion-dropdown-hidden {
+  display: none;
+  opacity: 0;
+}
+
+.suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 100ms ease-in-out;
+}
+
+.suggestion-item:hover {
+  background: var(--background-modifier-hover);
+} 

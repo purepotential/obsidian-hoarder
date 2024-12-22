@@ -61,24 +61,49 @@ export class HoarderSettingTab extends PluginSettingTab {
     return folders.sort();
   }
 
+  private createFolderSuggestions(input: any, settingKey: 'syncFolder' | 'attachmentsFolder') {
+    // Create the suggestion dropdown
+    const dropdown = createDiv({ cls: 'suggestion-dropdown suggestion-dropdown-hidden' });
+    input.inputEl.parentElement?.appendChild(dropdown);
+
+    // Show/hide suggestions based on input
+    input.inputEl.addEventListener('input', () => {
+      const value = input.inputEl.value.toLowerCase();
+      const allFolders = this.getFolders();
+      const matches = allFolders.filter((folder: string) => folder.toLowerCase().includes(value));
+
+      if (matches.length && value) {
+        dropdown.empty();
+        dropdown.removeClass('suggestion-dropdown-hidden');
+        matches.forEach((match: string) => {
+          const suggestion = dropdown.createDiv('suggestion-item');
+          suggestion.setText(match);
+          suggestion.addEventListener('click', async () => {
+            input.inputEl.value = match;
+            input.inputEl.dispatchEvent(new Event('input'));
+            this.plugin.settings[settingKey] = match;
+            await this.plugin.saveSettings();
+            dropdown.addClass('suggestion-dropdown-hidden');
+          });
+        });
+      } else {
+        dropdown.addClass('suggestion-dropdown-hidden');
+      }
+    });
+
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target as Node) && e.target !== input.inputEl) {
+        dropdown.addClass('suggestion-dropdown-hidden');
+      }
+    });
+
+    return input;
+  }
+
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-
-    // Add custom styles
-    containerEl.createEl('style', {
-      text: `
-        .hoarder-wide-input {
-          width: 300px;
-        }
-        .hoarder-medium-input {
-          width: 200px;
-        }
-        .hoarder-small-input {
-          width: 100px;
-        }
-      `
-    });
 
     new Setting(containerEl)
       .setName("API Key")
@@ -96,7 +121,7 @@ export class HoarderSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("API Endpoint")
-      .setDesc("Hoarder API endpoint URL (default: https://api.gethoarder.com/api/v1)")
+      .setDesc("Hoarder API endpoint URL (default: https://api.hoarder.app/api/v1)")
       .addText((text) =>
         text
           .setPlaceholder("Enter API endpoint")
@@ -120,49 +145,8 @@ export class HoarderSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
 
-        // Add folder suggestions
         input.inputEl.addClass('hoarder-medium-input');
-        
-        // Create the suggestion dropdown
-        const dropdown = createDiv('suggestion-dropdown');
-        dropdown.style.display = 'none';
-        dropdown.style.position = 'absolute';
-        dropdown.style.zIndex = '1000';
-        input.inputEl.parentElement?.appendChild(dropdown);
-
-        // Show/hide suggestions based on input
-        input.inputEl.addEventListener('input', () => {
-          const value = input.inputEl.value.toLowerCase();
-          const allFolders = this.getFolders();
-          const matches = allFolders.filter((folder: string) => folder.toLowerCase().includes(value));
-
-          if (matches.length && value) {
-            dropdown.empty();
-            dropdown.style.display = 'block';
-            matches.forEach((match: string) => {
-              const suggestion = dropdown.createDiv('suggestion-item');
-              suggestion.setText(match);
-              suggestion.addEventListener('click', async () => {
-                input.inputEl.value = match;
-                input.inputEl.dispatchEvent(new Event('input'));
-                this.plugin.settings.syncFolder = match;
-                await this.plugin.saveSettings();
-                dropdown.style.display = 'none';
-              });
-            });
-          } else {
-            dropdown.style.display = 'none';
-          }
-        });
-
-        // Hide dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-          if (!dropdown.contains(e.target as Node) && e.target !== input.inputEl) {
-            dropdown.style.display = 'none';
-          }
-        });
-
-        return input;
+        return this.createFolderSuggestions(input, 'syncFolder');
       });
 
     new Setting(containerEl)
@@ -177,49 +161,8 @@ export class HoarderSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
 
-        // Add folder suggestions
         input.inputEl.addClass('hoarder-medium-input');
-        
-        // Create the suggestion dropdown
-        const dropdown = createDiv('suggestion-dropdown');
-        dropdown.style.display = 'none';
-        dropdown.style.position = 'absolute';
-        dropdown.style.zIndex = '1000';
-        input.inputEl.parentElement?.appendChild(dropdown);
-
-        // Show/hide suggestions based on input
-        input.inputEl.addEventListener('input', () => {
-          const value = input.inputEl.value.toLowerCase();
-          const allFolders = this.getFolders();
-          const matches = allFolders.filter((folder: string) => folder.toLowerCase().includes(value));
-
-          if (matches.length && value) {
-            dropdown.empty();
-            dropdown.style.display = 'block';
-            matches.forEach((match: string) => {
-              const suggestion = dropdown.createDiv('suggestion-item');
-              suggestion.setText(match);
-              suggestion.addEventListener('click', async () => {
-                input.inputEl.value = match;
-                input.inputEl.dispatchEvent(new Event('input'));
-                this.plugin.settings.attachmentsFolder = match;
-                await this.plugin.saveSettings();
-                dropdown.style.display = 'none';
-              });
-            });
-          } else {
-            dropdown.style.display = 'none';
-          }
-        });
-
-        // Hide dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-          if (!dropdown.contains(e.target as Node) && e.target !== input.inputEl) {
-            dropdown.style.display = 'none';
-          }
-        });
-
-        return input;
+        return this.createFolderSuggestions(input, 'attachmentsFolder');
       });
 
     new Setting(containerEl)
@@ -326,27 +269,5 @@ export class HoarderSettingTab extends PluginSettingTab {
         cls: "setting-item-description",
       });
     }
-
-    // Add styles for folder suggestions
-    containerEl.createEl('style', {
-      text: `
-        .suggestion-dropdown {
-          background: var(--background-primary);
-          border: 1px solid var(--background-modifier-border);
-          border-radius: 4px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-          max-height: 200px;
-          overflow-y: auto;
-          width: 200px;
-        }
-        .suggestion-item {
-          padding: 8px 12px;
-          cursor: pointer;
-        }
-        .suggestion-item:hover {
-          background: var(--background-modifier-hover);
-        }
-      `
-    });
   }
 }

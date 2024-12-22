@@ -5,5 +5,7 @@
     "minAppVersion": "0.15.0",
     "description": "Sync your Hoarder bookmarks",
     "author": "Jordan Hofker",
-    "isDesktopOnly": false
+    "isDesktopOnly": false,
+    "js": "main.js",
+    "css": "styles.css"
 }
