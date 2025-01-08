@@ -10,7 +10,7 @@
   width: 100px;
 }
 
-.suggestion-dropdown {
+.hoarder-suggestion-dropdown {
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
@@ -25,17 +25,17 @@
   transition: opacity 150ms ease-in-out;
 }
 
-.suggestion-dropdown-hidden {
+.hoarder-suggestion-dropdown-hidden {
   display: none;
   opacity: 0;
 }
 
-.suggestion-item {
+.hoarder-suggestion-item {
   padding: 8px 12px;
   cursor: pointer;
   transition: background-color 100ms ease-in-out;
 }
 
-.suggestion-item:hover {
+.hoarder-suggestion-item:hover {
   background: var(--background-modifier-hover);
 } 

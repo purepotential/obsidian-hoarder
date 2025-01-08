@@ -1,4 +1,4 @@
-import { App, Plugin, Notice, Events, TAbstractFile, TFile } from "obsidian";
+import { App, Plugin, Notice, Events, TAbstractFile, TFile, FrontMatterCache } from "obsidian";
 import {
   HoarderSettings,
   DEFAULT_SETTINGS,
@@ -227,24 +227,22 @@ export default class HoarderPlugin extends Plugin {
     filePath: string
   ): Promise<{ currentNotes: string | null; originalNotes: string | null }> {
     try {
-      const content = await this.app.vault.adapter.read(filePath);
+      const file = this.app.vault.getAbstractFileByPath(filePath);
+      if (!(file instanceof TFile)) {
+        return { currentNotes: null, originalNotes: null };
+      }
 
+      const content = await this.app.vault.adapter.read(filePath);
+      
       // Extract notes from the content
       const notesMatch = content.match(/## Notes\n\n([\s\S]*?)(?=\n##|\n\[|$)/);
       const currentNotes = notesMatch ? notesMatch[1].trim() : null;
 
-      // Extract original notes from frontmatter
-      const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
-      if (frontmatterMatch) {
-        const frontmatter = frontmatterMatch[1];
-        const originalNoteMatch = frontmatter.match(/^original_note: (.*)$/m);
-        const originalNotes = originalNoteMatch
-          ? originalNoteMatch[1].trim()
-          : null;
-        return { currentNotes, originalNotes };
-      }
+      // Use MetadataCache to get frontmatter
+      const metadata = this.app.metadataCache.getFileCache(file)?.frontmatter;
+      const originalNotes = metadata?.original_note ?? null;
 
-      return { currentNotes, originalNotes: null };
+      return { currentNotes, originalNotes };
     } catch (error) {
       console.error("Error reading file:", error);
       return { currentNotes: null, originalNotes: null };
@@ -328,13 +326,6 @@ export default class HoarderPlugin extends Plugin {
             );
             if (hasExcludedTag) {
               excludedByTags++;
-              console.log(
-                `Skipping bookmark ${bookmark.id} with tags ${bookmarkTags.join(
-                  ", "
-                )} due to excluded tag: ${this.settings.excludedTags.join(
-                  ", "
-                )}`
-              );
               continue;
             }
           }
@@ -662,17 +653,10 @@ summary: ${escapeYaml(bookmark.summary)}
         return;
       }
 
-      // Get bookmark ID from frontmatter
-      const content = await this.app.vault.adapter.read(file.path);
-      const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
-      if (!frontmatterMatch) return;
-
-      // Look for bookmark_id in frontmatter
-      const frontmatter = frontmatterMatch[1];
-      const idMatch = frontmatter.match(/^bookmark_id: "?([^"\n]+)"?$/m);
-      if (!idMatch) return;
-
-      const bookmarkId = idMatch[1];
+      // Get bookmark ID from frontmatter using MetadataCache
+      const metadata = this.app.metadataCache.getFileCache(file)?.frontmatter;
+      const bookmarkId = metadata?.bookmark_id;
+      if (!bookmarkId) return;
 
       // Only update if notes have changed
       if (currentNotesStr !== originalNotesStr) {
@@ -693,19 +677,13 @@ summary: ${escapeYaml(bookmark.summary)}
           setTimeout(async () => {
             try {
               // Re-read the file to get the latest content
-              const latestContent = await this.app.vault.adapter.read(
-                file.path
-              );
-              const { currentNotes: latestNotes } =
-                await this.extractNotesFromFile(file.path);
+              const { currentNotes: latestNotes } = await this.extractNotesFromFile(file.path);
 
               // Only update frontmatter if notes haven't changed since sync
               if (latestNotes === currentNotesStr) {
-                const newContent = latestContent.replace(
-                  /^original_note: .*$/m,
-                  `original_note: ${this.escapeYaml(currentNotesStr)}`
-                );
-                await this.app.vault.adapter.write(file.path, newContent);
+                await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+                  frontmatter["original_note"] = currentNotesStr;
+                });
               }
             } catch (error) {
               console.error("Error updating frontmatter:", error);

@@ -1,4 +1,4 @@
-# Obsidian Hoarder Plugin
+# Hoarder Plugin for Obsidian
 
 This plugin syncs your Hoarder bookmarks with Obsidian, creating markdown notes for each bookmark in a designated folder.
 
@@ -38,16 +38,16 @@ Ensure your CORS policy is set to allow requests from your Obsidian instance. In
 
 ## Settings
 
-- **API Key**: Your Hoarder API key (required)
-- **API Endpoint**: The Hoarder API endpoint (default: https://api.hoarder.app/api/v1)
-- **Sync Folder**: The folder where bookmark notes will be created (default: "Hoarder")
-- **Attachments Folder**: The folder where bookmark images will be saved (default: "Hoarder/attachments")
-- **Sync Interval**: How often to sync in minutes (default: 60)
-- **Update Existing Files**: Whether to update or skip existing bookmark files (default: false)
-- **Exclude Archived**: Exclude archived bookmarks from sync (default: true)
-- **Only Favorites**: Only sync favorited bookmarks (default: false)
-- **Sync Notes to Hoarder**: Whether to sync notes back to Hoarder (default: true)
-- **Excluded Tags**: Bookmarks with these tags will not be synced (comma-separated), unless favorited (default: empty)
+- **Api key**: Your Hoarder API key (required)
+- **Api endpoint**: The Hoarder API endpoint (default: https://api.hoarder.app/api/v1)
+- **Sync folder**: The folder where bookmark notes will be created (default: "Hoarder")
+- **Attachments folder**: The folder where bookmark images will be saved (default: "Hoarder/attachments")
+- **Sync interval**: How often to sync in minutes (default: 60)
+- **Update existing files**: Whether to update or skip existing bookmark files (default: false)
+- **Exclude archived**: Exclude archived bookmarks from sync (default: true)
+- **Only favorites**: Only sync favorited bookmarks (default: false)
+- **Sync notes to Hoarder**: Whether to sync notes back to Hoarder (default: true)
+- **Excluded tags**: Bookmarks with these tags will not be synced (comma-separated), unless favorited (default: empty)
 
 ## Development
 

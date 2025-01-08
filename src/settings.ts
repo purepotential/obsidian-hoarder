@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, Notice, TFolder } from "obsidian";
+import { App, PluginSettingTab, Setting, Notice, TFolder, AbstractInputSuggest, TAbstractFile } from "obsidian";
 import HoarderPlugin from "./main";
 
 export interface HoarderSettings {
@@ -29,6 +29,44 @@ export const DEFAULT_SETTINGS: HoarderSettings = {
   excludedTags: [],
 };
 
+class FolderSuggest extends AbstractInputSuggest<TFolder> {
+  private folders: TFolder[];
+  private inputEl: HTMLInputElement;
+
+  constructor(app: App, inputEl: HTMLInputElement) {
+    super(app, inputEl);
+    this.folders = this.getFolders();
+    this.inputEl = inputEl;
+  }
+
+  getSuggestions(inputStr: string): TFolder[] {
+    const lowerCaseInputStr = inputStr.toLowerCase();
+    return this.folders.filter(folder => 
+      folder.path.toLowerCase().contains(lowerCaseInputStr)
+    );
+  }
+
+  renderSuggestion(folder: TFolder, el: HTMLElement): void {
+    el.setText(folder.path);
+  }
+  selectSuggestion(folder: TFolder): void {
+    const value = folder.path;
+    this.inputEl.value = value;
+    this.inputEl.trigger("input");
+    this.close();
+  }
+
+  private getFolders(): TFolder[] {
+    const folders: TFolder[] = [];
+    this.app.vault.getAllLoadedFiles().forEach(file => {
+      if (file instanceof TFolder) {
+        folders.push(file);
+      }
+    });
+    return folders.sort((a, b) => a.path.localeCompare(b.path));
+  }
+}
+
 export class HoarderSettingTab extends PluginSettingTab {
   plugin: HoarderPlugin;
   syncButton: any;
@@ -50,63 +88,12 @@ export class HoarderSettingTab extends PluginSettingTab {
     }
   };
 
-  // Get all folders in the vault
-  private getFolders(): string[] {
-    const folders: string[] = ['/'];
-    this.app.vault.getAllLoadedFiles().forEach(file => {
-      if (file instanceof TFolder) {
-        folders.push(file.path);
-      }
-    });
-    return folders.sort();
-  }
-
-  private createFolderSuggestions(input: any, settingKey: 'syncFolder' | 'attachmentsFolder') {
-    // Create the suggestion dropdown
-    const dropdown = createDiv({ cls: 'suggestion-dropdown suggestion-dropdown-hidden' });
-    input.inputEl.parentElement?.appendChild(dropdown);
-
-    // Show/hide suggestions based on input
-    input.inputEl.addEventListener('input', () => {
-      const value = input.inputEl.value.toLowerCase();
-      const allFolders = this.getFolders();
-      const matches = allFolders.filter((folder: string) => folder.toLowerCase().includes(value));
-
-      if (matches.length && value) {
-        dropdown.empty();
-        dropdown.removeClass('suggestion-dropdown-hidden');
-        matches.forEach((match: string) => {
-          const suggestion = dropdown.createDiv('suggestion-item');
-          suggestion.setText(match);
-          suggestion.addEventListener('click', async () => {
-            input.inputEl.value = match;
-            input.inputEl.dispatchEvent(new Event('input'));
-            this.plugin.settings[settingKey] = match;
-            await this.plugin.saveSettings();
-            dropdown.addClass('suggestion-dropdown-hidden');
-          });
-        });
-      } else {
-        dropdown.addClass('suggestion-dropdown-hidden');
-      }
-    });
-
-    // Hide dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!dropdown.contains(e.target as Node) && e.target !== input.inputEl) {
-        dropdown.addClass('suggestion-dropdown-hidden');
-      }
-    });
-
-    return input;
-  }
-
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
 
     new Setting(containerEl)
-      .setName("API Key")
+      .setName("Api key")
       .setDesc("Your Hoarder API key")
       .addText((text) =>
         text
@@ -120,7 +107,7 @@ export class HoarderSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("API Endpoint")
+      .setName("Api endpoint")
       .setDesc("Hoarder API endpoint URL (default: https://api.hoarder.app/api/v1)")
       .addText((text) =>
         text
@@ -134,39 +121,41 @@ export class HoarderSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Sync Folder")
+      .setName("Sync folder")
       .setDesc("Folder where bookmarks will be saved")
       .addText((text) => {
-        const input = text
+        text
           .setPlaceholder("Example: folder1/folder2")
           .setValue(this.plugin.settings.syncFolder)
           .onChange(async (value) => {
             this.plugin.settings.syncFolder = value;
             await this.plugin.saveSettings();
           });
-
-        input.inputEl.addClass('hoarder-medium-input');
-        return this.createFolderSuggestions(input, 'syncFolder');
+        
+        text.inputEl.addClass('hoarder-medium-input');
+        new FolderSuggest(this.app, text.inputEl);
+        return text;
       });
 
     new Setting(containerEl)
-      .setName("Attachments Folder")
+      .setName("Attachments folder")
       .setDesc("Folder where bookmark images will be saved")
       .addText((text) => {
-        const input = text
+        text
           .setPlaceholder("Example: folder1/attachments")
           .setValue(this.plugin.settings.attachmentsFolder)
           .onChange(async (value) => {
             this.plugin.settings.attachmentsFolder = value;
             await this.plugin.saveSettings();
           });
-
-        input.inputEl.addClass('hoarder-medium-input');
-        return this.createFolderSuggestions(input, 'attachmentsFolder');
+        
+        text.inputEl.addClass('hoarder-medium-input');
+        new FolderSuggest(this.app, text.inputEl);
+        return text;
       });
 
     new Setting(containerEl)
-      .setName("Sync Interval")
+      .setName("Sync interval")
       .setDesc("How often to sync (in minutes)")
       .addText((text) =>
         text
@@ -184,7 +173,7 @@ export class HoarderSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Update Existing Files")
+      .setName("Update existing files")
       .setDesc("Whether to update or skip existing bookmark files")
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.updateExistingFiles)
@@ -194,7 +183,7 @@ export class HoarderSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName("Exclude Archived")
+      .setName("Exclude archived")
       .setDesc("Exclude archived bookmarks from sync")
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.excludeArchived)
@@ -204,7 +193,7 @@ export class HoarderSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName("Only Favorites")
+      .setName("Only favorites")
       .setDesc("Only sync favorited bookmarks")
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.onlyFavorites)
@@ -214,7 +203,7 @@ export class HoarderSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName("Sync Notes to Hoarder")
+      .setName("Sync notes to Hoarder")
       .setDesc("Whether to sync notes to Hoarder")
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.syncNotesToHoarder)
@@ -224,7 +213,7 @@ export class HoarderSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName("Excluded Tags")
+      .setName("Excluded tags")
       .setDesc("Bookmarks with these tags will not be synced (comma-separated), unless favorited")
       .addText((text) =>
         text
@@ -243,7 +232,7 @@ export class HoarderSettingTab extends PluginSettingTab {
 
     // Add Sync Now button
     new Setting(containerEl)
-      .setName("Manual Sync")
+      .setName("Manual sync")
       .setDesc("Sync bookmarks now")
       .addButton((button) => {
         this.syncButton = button
