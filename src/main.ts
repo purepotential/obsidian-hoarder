@@ -1,4 +1,9 @@
-import { App, Plugin, Notice, Events, TAbstractFile, TFile, FrontMatterCache } from "obsidian";
+import {
+  Plugin,
+  Notice,
+  Events,
+  TFile,
+} from "obsidian";
 import {
   HoarderSettings,
   DEFAULT_SETTINGS,
@@ -64,6 +69,16 @@ export default class HoarderPlugin extends Plugin {
 
     // Add settings tab
     this.addSettingTab(new HoarderSettingTab(this.app, this));
+
+    // Add command to trigger sync
+    this.addCommand({
+      id: "trigger-hoarder-sync",
+      name: "Sync Hoarder Bookmarks",
+      callback: async () => {
+        const result = await this.syncBookmarks();
+        new Notice(result.message);
+      },
+    });
 
     // Register file modification event
     this.registerEvent(
@@ -233,7 +248,7 @@ export default class HoarderPlugin extends Plugin {
       }
 
       const content = await this.app.vault.adapter.read(filePath);
-      
+
       // Extract notes from the content
       const notesMatch = content.match(/## Notes\n\n([\s\S]*?)(?=\n##|\n\[|$)/);
       const currentNotes = notesMatch ? notesMatch[1].trim() : null;
@@ -677,13 +692,17 @@ summary: ${escapeYaml(bookmark.summary)}
           setTimeout(async () => {
             try {
               // Re-read the file to get the latest content
-              const { currentNotes: latestNotes } = await this.extractNotesFromFile(file.path);
+              const { currentNotes: latestNotes } =
+                await this.extractNotesFromFile(file.path);
 
               // Only update frontmatter if notes haven't changed since sync
               if (latestNotes === currentNotesStr) {
-                await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-                  frontmatter["original_note"] = currentNotesStr;
-                });
+                await this.app.fileManager.processFrontMatter(
+                  file,
+                  (frontmatter) => {
+                    frontmatter["original_note"] = currentNotesStr;
+                  }
+                );
               }
             } catch (error) {
               console.error("Error updating frontmatter:", error);
@@ -697,22 +716,5 @@ summary: ${escapeYaml(bookmark.summary)}
       console.error("Error handling file modification:", error);
       new Notice("Failed to sync notes to Hoarder");
     }
-  }
-
-  // Helper function to escape YAML values (moved from formatBookmarkAsMarkdown)
-  private escapeYaml(str: string | null | undefined): string {
-    if (!str) return "";
-    // If string contains newlines or special characters, use block scalar
-    if (str.includes("\n") || /[:#{}\[\],&*?|<>=!%@`]/.test(str)) {
-      return `|\n  ${str.replace(/\n/g, "\n  ")}`;
-    }
-    // For simple strings, just wrap in quotes if needed
-    if (str.includes('"')) {
-      return `'${str}'`;
-    }
-    if (str.includes("'") || /^[ \t]|[ \t]$/.test(str)) {
-      return `"${str.replace(/"/g, '\\"')}"`;
-    }
-    return str;
   }
 }
