@@ -73,7 +73,7 @@ export default class HoarderPlugin extends Plugin {
     // Add command to trigger sync
     this.addCommand({
       id: "trigger-hoarder-sync",
-      name: "Sync Hoarder Bookmarks",
+      name: "Sync Bookmarks",
       callback: async () => {
         const result = await this.syncBookmarks();
         new Notice(result.message);
