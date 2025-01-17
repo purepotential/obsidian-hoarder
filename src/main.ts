@@ -1,9 +1,4 @@
-import {
-  Plugin,
-  Notice,
-  Events,
-  TFile,
-} from "obsidian";
+import { Plugin, Notice, Events, TFile } from "obsidian";
 import {
   HoarderSettings,
   DEFAULT_SETTINGS,
@@ -100,7 +95,7 @@ export default class HoarderPlugin extends Plugin {
             await this.handleFileModification(file);
           }, 2000); // Wait 2 seconds after last modification
         }
-      })
+      }),
     );
 
     // Start periodic sync
@@ -146,7 +141,7 @@ export default class HoarderPlugin extends Plugin {
 
   async fetchBookmarks(
     page: number = 1,
-    limit: number = 100
+    limit: number = 100,
   ): Promise<HoarderResponse> {
     const queryParams = new URLSearchParams({
       page: page.toString(),
@@ -168,7 +163,7 @@ export default class HoarderPlugin extends Plugin {
           Authorization: `Bearer ${this.settings.apiKey}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -239,7 +234,7 @@ export default class HoarderPlugin extends Plugin {
   }
 
   async extractNotesFromFile(
-    filePath: string
+    filePath: string,
   ): Promise<{ currentNotes: string | null; originalNotes: string | null }> {
     try {
       const file = this.app.vault.getAbstractFileByPath(filePath);
@@ -266,7 +261,7 @@ export default class HoarderPlugin extends Plugin {
 
   async updateBookmarkInHoarder(
     bookmarkId: string,
-    note: string
+    note: string,
   ): Promise<boolean> {
     try {
       const response = await fetch(
@@ -280,7 +275,7 @@ export default class HoarderPlugin extends Plugin {
           body: JSON.stringify({
             note: note,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -334,10 +329,10 @@ export default class HoarderPlugin extends Plugin {
           // Skip if bookmark has any excluded tags
           if (!bookmark.favourited && this.settings.excludedTags.length > 0) {
             const bookmarkTags = bookmark.tags.map((tag) =>
-              tag.name.toLowerCase()
+              tag.name.toLowerCase(),
             );
             const hasExcludedTag = this.settings.excludedTags.some(
-              (excludedTag) => bookmarkTags.includes(excludedTag.toLowerCase())
+              (excludedTag) => bookmarkTags.includes(excludedTag.toLowerCase()),
             );
             if (hasExcludedTag) {
               excludedByTags++;
@@ -348,7 +343,7 @@ export default class HoarderPlugin extends Plugin {
           const title = this.getBookmarkTitle(bookmark);
           const fileName = `${folderPath}/${this.sanitizeFileName(
             title,
-            bookmark.createdAt
+            bookmark.createdAt,
           )}.md`;
 
           const fileExists = await this.app.vault.adapter.exists(fileName);
@@ -370,7 +365,7 @@ export default class HoarderPlugin extends Plugin {
                 // Local notes have changed from original, update in Hoarder
                 const updated = await this.updateBookmarkInHoarder(
                   bookmark.id,
-                  currentNotes
+                  currentNotes,
                 );
                 if (updated) {
                   updatedInHoarder++;
@@ -382,7 +377,7 @@ export default class HoarderPlugin extends Plugin {
             if (this.settings.updateExistingFiles) {
               const content = await this.formatBookmarkAsMarkdown(
                 bookmark,
-                title
+                title,
               );
               await this.app.vault.adapter.write(fileName, content);
               totalBookmarks++;
@@ -392,7 +387,7 @@ export default class HoarderPlugin extends Plugin {
           } else {
             const content = await this.formatBookmarkAsMarkdown(
               bookmark,
-              title
+              title,
             );
             await this.app.vault.create(fileName, content);
             totalBookmarks++;
@@ -476,7 +471,7 @@ export default class HoarderPlugin extends Plugin {
   async downloadImage(
     url: string,
     assetId: string,
-    title: string
+    title: string,
   ): Promise<string | null> {
     try {
       // Create attachments folder if it doesn't exist
@@ -489,7 +484,7 @@ export default class HoarderPlugin extends Plugin {
       // Get file extension from URL or default to jpg
       const extension = url.split(".").pop()?.toLowerCase() || "jpg";
       const safeExtension = ["jpg", "jpeg", "png", "gif", "webp"].includes(
-        extension
+        extension,
       )
         ? extension
         : "jpg";
@@ -531,7 +526,7 @@ export default class HoarderPlugin extends Plugin {
 
   async formatBookmarkAsMarkdown(
     bookmark: HoarderBookmark,
-    title: string
+    title: string,
   ): Promise<string> {
     const url =
       bookmark.content.type === "link"
@@ -602,7 +597,7 @@ summary: ${escapeYaml(bookmark.summary)}
         const imagePath = await this.downloadImage(
           assetUrl,
           bookmark.content.assetId,
-          title
+          title,
         );
         if (imagePath) {
           content += `\n![${title}](${imagePath})\n`;
@@ -619,7 +614,7 @@ summary: ${escapeYaml(bookmark.summary)}
         const imagePath = await this.downloadImage(
           assetUrl,
           bookmark.content.imageAssetId,
-          title
+          title,
         );
         if (imagePath) {
           content += `\n![${title}](${imagePath})\n`;
@@ -656,7 +651,7 @@ summary: ${escapeYaml(bookmark.summary)}
     try {
       // Extract current and original notes
       const { currentNotes, originalNotes } = await this.extractNotesFromFile(
-        file.path
+        file.path,
       );
 
       // Convert null to empty string for comparison
@@ -682,7 +677,7 @@ summary: ${escapeYaml(bookmark.summary)}
 
         const updated = await this.updateBookmarkInHoarder(
           bookmarkId,
-          currentNotesStr
+          currentNotesStr,
         );
         if (updated) {
           // Store these notes as the last synced version
@@ -701,7 +696,7 @@ summary: ${escapeYaml(bookmark.summary)}
                   file,
                   (frontmatter) => {
                     frontmatter["original_note"] = currentNotesStr;
-                  }
+                  },
                 );
               }
             } catch (error) {

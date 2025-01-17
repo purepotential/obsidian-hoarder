@@ -1,4 +1,12 @@
-import { App, PluginSettingTab, Setting, Notice, TFolder, AbstractInputSuggest, TAbstractFile } from "obsidian";
+import {
+  App,
+  PluginSettingTab,
+  Setting,
+  Notice,
+  TFolder,
+  AbstractInputSuggest,
+  TAbstractFile,
+} from "obsidian";
 import HoarderPlugin from "./main";
 
 export interface HoarderSettings {
@@ -41,8 +49,8 @@ class FolderSuggest extends AbstractInputSuggest<TFolder> {
 
   getSuggestions(inputStr: string): TFolder[] {
     const lowerCaseInputStr = inputStr.toLowerCase();
-    return this.folders.filter(folder => 
-      folder.path.toLowerCase().contains(lowerCaseInputStr)
+    return this.folders.filter((folder) =>
+      folder.path.toLowerCase().contains(lowerCaseInputStr),
     );
   }
 
@@ -58,7 +66,7 @@ class FolderSuggest extends AbstractInputSuggest<TFolder> {
 
   private getFolders(): TFolder[] {
     const folders: TFolder[] = [];
-    this.app.vault.getAllLoadedFiles().forEach(file => {
+    this.app.vault.getAllLoadedFiles().forEach((file) => {
       if (file instanceof TFolder) {
         folders.push(file);
       }
@@ -78,7 +86,7 @@ export class HoarderSettingTab extends PluginSettingTab {
 
   onunload() {
     // Clean up event listener
-    this.plugin.events.off('sync-state-change', this.updateSyncButton);
+    this.plugin.events.off("sync-state-change", this.updateSyncButton);
   }
 
   private updateSyncButton = (isSyncing: boolean) => {
@@ -103,12 +111,14 @@ export class HoarderSettingTab extends PluginSettingTab {
             this.plugin.settings.apiKey = value;
             await this.plugin.saveSettings();
           })
-          .inputEl.addClass('hoarder-wide-input')
+          .inputEl.addClass("hoarder-wide-input"),
       );
 
     new Setting(containerEl)
       .setName("Api endpoint")
-      .setDesc("Hoarder API endpoint URL (default: https://api.hoarder.app/api/v1)")
+      .setDesc(
+        "Hoarder API endpoint URL (default: https://api.hoarder.app/api/v1)",
+      )
       .addText((text) =>
         text
           .setPlaceholder("Enter API endpoint")
@@ -117,7 +127,7 @@ export class HoarderSettingTab extends PluginSettingTab {
             this.plugin.settings.apiEndpoint = value;
             await this.plugin.saveSettings();
           })
-          .inputEl.addClass('hoarder-wide-input')
+          .inputEl.addClass("hoarder-wide-input"),
       );
 
     new Setting(containerEl)
@@ -131,8 +141,8 @@ export class HoarderSettingTab extends PluginSettingTab {
             this.plugin.settings.syncFolder = value;
             await this.plugin.saveSettings();
           });
-        
-        text.inputEl.addClass('hoarder-medium-input');
+
+        text.inputEl.addClass("hoarder-medium-input");
         new FolderSuggest(this.app, text.inputEl);
         return text;
       });
@@ -148,8 +158,8 @@ export class HoarderSettingTab extends PluginSettingTab {
             this.plugin.settings.attachmentsFolder = value;
             await this.plugin.saveSettings();
           });
-        
-        text.inputEl.addClass('hoarder-medium-input');
+
+        text.inputEl.addClass("hoarder-medium-input");
         new FolderSuggest(this.app, text.inputEl);
         return text;
       });
@@ -169,52 +179,62 @@ export class HoarderSettingTab extends PluginSettingTab {
               this.plugin.startPeriodicSync();
             }
           })
-          .inputEl.addClass('hoarder-small-input')
+          .inputEl.addClass("hoarder-small-input"),
       );
 
     new Setting(containerEl)
       .setName("Update existing files")
       .setDesc("Whether to update or skip existing bookmark files")
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.updateExistingFiles)
-        .onChange(async (value) => {
-          this.plugin.settings.updateExistingFiles = value;
-          await this.plugin.saveSettings();
-        }));
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.updateExistingFiles)
+          .onChange(async (value) => {
+            this.plugin.settings.updateExistingFiles = value;
+            await this.plugin.saveSettings();
+          }),
+      );
 
     new Setting(containerEl)
       .setName("Exclude archived")
       .setDesc("Exclude archived bookmarks from sync")
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.excludeArchived)
-        .onChange(async (value) => {
-          this.plugin.settings.excludeArchived = value;
-          await this.plugin.saveSettings();
-        }));
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.excludeArchived)
+          .onChange(async (value) => {
+            this.plugin.settings.excludeArchived = value;
+            await this.plugin.saveSettings();
+          }),
+      );
 
     new Setting(containerEl)
       .setName("Only favorites")
       .setDesc("Only sync favorited bookmarks")
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.onlyFavorites)
-        .onChange(async (value) => {
-          this.plugin.settings.onlyFavorites = value;
-          await this.plugin.saveSettings();
-        }));
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.onlyFavorites)
+          .onChange(async (value) => {
+            this.plugin.settings.onlyFavorites = value;
+            await this.plugin.saveSettings();
+          }),
+      );
 
     new Setting(containerEl)
       .setName("Sync notes to Hoarder")
       .setDesc("Whether to sync notes to Hoarder")
-      .addToggle(toggle => toggle
-        .setValue(this.plugin.settings.syncNotesToHoarder)
-        .onChange(async (value) => {
-          this.plugin.settings.syncNotesToHoarder = value;
-          await this.plugin.saveSettings();
-        }));
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.syncNotesToHoarder)
+          .onChange(async (value) => {
+            this.plugin.settings.syncNotesToHoarder = value;
+            await this.plugin.saveSettings();
+          }),
+      );
 
     new Setting(containerEl)
       .setName("Excluded tags")
-      .setDesc("Bookmarks with these tags will not be synced (comma-separated), unless favorited")
+      .setDesc(
+        "Bookmarks with these tags will not be synced (comma-separated), unless favorited",
+      )
       .addText((text) =>
         text
           .setPlaceholder("private, secret, draft")
@@ -223,11 +243,11 @@ export class HoarderSettingTab extends PluginSettingTab {
             // Split by comma, trim whitespace, and filter out empty strings
             this.plugin.settings.excludedTags = value
               .split(",")
-              .map(tag => tag.trim())
-              .filter(tag => tag.length > 0);
+              .map((tag) => tag.trim())
+              .filter((tag) => tag.length > 0);
             await this.plugin.saveSettings();
           })
-          .inputEl.addClass('hoarder-wide-input')
+          .inputEl.addClass("hoarder-wide-input"),
       );
 
     // Add Sync Now button
@@ -244,8 +264,8 @@ export class HoarderSettingTab extends PluginSettingTab {
           });
 
         // Subscribe to sync state changes
-        this.plugin.events.on('sync-state-change', this.updateSyncButton);
-        
+        this.plugin.events.on("sync-state-change", this.updateSyncButton);
+
         return button;
       });
 
@@ -253,7 +273,7 @@ export class HoarderSettingTab extends PluginSettingTab {
     if (this.plugin.settings.lastSyncTimestamp > 0) {
       containerEl.createEl("div", {
         text: `Last synced: ${new Date(
-          this.plugin.settings.lastSyncTimestamp
+          this.plugin.settings.lastSyncTimestamp,
         ).toLocaleString()}`,
         cls: "setting-item-description",
       });
