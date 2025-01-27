@@ -570,11 +570,17 @@ export default class HoarderPlugin extends Plugin {
       return `"${tag}"`;
     };
 
+    // Check for full page archive
+    const fullPageArchiveAsset = bookmark.content.fullPageArchiveAssetId 
+      ? `${this.settings.apiBaseUrl}/api/assets/${bookmark.content.fullPageArchiveAssetId}`
+      : "";
+
     let content = `---
 bookmark_id: "${bookmark.id}"
 url: ${escapeYaml(url)}
 title: ${escapeYaml(title)}
 date: ${new Date(bookmark.createdAt).toISOString()}
+full_page_archive: ${escapeYaml(fullPageArchiveAsset)}
 tags:
   - ${tags.map(escapeTag).join("\n  - ")}
 note: ${escapeYaml(bookmark.note)}
