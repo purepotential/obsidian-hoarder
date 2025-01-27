@@ -644,11 +644,13 @@ summary: ${escapeYaml(bookmark.summary)}
     // Add Content section if available and enabled
     if (this.settings.importContent && bookmark.content.type === "link" && bookmark.content.htmlContent) {
       content += "\n## Content\n\n";
-      const { JSDOM } = require('jsdom');
-      const TurndownService = require('turndown');
+      const jsdom = require('jsdom');
+      const turndown = require('turndown');
+      const punycode = require('punycode/');
 
-      const dom = new JSDOM(bookmark.content.htmlContent);
-      const turndownService = new TurndownService({
+      global.punycode = punycode;
+      const dom = new jsdom.JSDOM(bookmark.content.htmlContent);
+      const turndownService = new turndown({
         headingStyle: 'atx',
         hr: '---',
         bulletListMarker: '-',
