@@ -540,9 +540,8 @@ export default class HoarderPlugin extends Plugin {
 
     // Helper function to get asset URL
     const getAssetUrl = (assetId: string): string => {
-      // Remove /v1 and any trailing slashes from the API endpoint
       const baseUrl = this.settings.apiBaseUrl;
-      return `${baseUrl}/assets/${assetId}`;
+      return `${baseUrl}/api/assets/${assetId}`;
     };
 
     // Helper function to escape YAML values
