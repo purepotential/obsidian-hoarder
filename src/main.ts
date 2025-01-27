@@ -645,7 +645,7 @@ summary: ${escapeYaml(bookmark.summary)}
     if (this.settings.importContent && bookmark.content.type === "link" && bookmark.content.htmlContent) {
       content += "\n## Content\n\n";
       const { JSDOM } = require('jsdom');
-      const TurndownService = require('turndown');
+      import TurndownService from 'turndown';
 
       const dom = new JSDOM(bookmark.content.htmlContent);
       const turndownService = new TurndownService({
