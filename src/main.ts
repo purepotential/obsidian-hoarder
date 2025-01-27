@@ -644,14 +644,10 @@ summary: ${escapeYaml(bookmark.summary)}
     // Add Content section if available and enabled
     if (this.settings.importContent && bookmark.content.type === "link" && bookmark.content.htmlContent) {
       content += "\n## Content\n\n";
-      const { Readability } = require('@mozilla/readability');
       const { JSDOM } = require('jsdom');
       const TurndownService = require('turndown');
 
       const dom = new JSDOM(bookmark.content.htmlContent);
-      const reader = new Readability(dom.window.document);
-      const article = reader.parse();
-
       const turndownService = new TurndownService({
         headingStyle: 'atx',
         hr: '---',
@@ -659,10 +655,9 @@ summary: ${escapeYaml(bookmark.summary)}
         codeBlockStyle: 'fenced'
       });
 
-      if (article) {
-        const markdownContent = turndownService.turndown(article.content);
-        content += `${markdownContent}\n`;
-      }
+      // Convert the body content to markdown
+      const markdownContent = turndownService.turndown(dom.window.document.body.innerHTML);
+      content += `${markdownContent}\n`;
     }
 
     // Add Notes section
