@@ -234,7 +234,7 @@ export class HoarderSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Import content")
-      .setDesc("Import bookmark's HTML content into the note section")
+      .setDesc("Import bookmark's HTML content into the content section")
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.importContent)

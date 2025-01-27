@@ -636,9 +636,9 @@ summary: ${escapeYaml(bookmark.summary)}
       content += `\n## Description\n\n${description}\n`;
     }
 
-    // Add Notes section with optional content
-    content += "\n## Notes\n\n";
+    // Add Content section if available and enabled
     if (this.settings.importContent && bookmark.content.type === "link" && bookmark.content.htmlContent) {
+      content += "\n## Content\n\n";
       const TurndownService = require('turndown');
       const turndownService = new TurndownService({
         headingStyle: 'atx',
@@ -647,8 +647,11 @@ summary: ${escapeYaml(bookmark.summary)}
         codeBlockStyle: 'fenced'
       });
       const markdownContent = turndownService.turndown(bookmark.content.htmlContent);
-      content += `${markdownContent}\n\n---\n\n`;
+      content += `${markdownContent}\n`;
     }
+
+    // Add Notes section
+    content += "\n## Notes\n\n";
     content += `${bookmark.note || ""}\n`;
 
     // Add link if available (and it's not just an image)
