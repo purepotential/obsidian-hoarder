@@ -46,8 +46,7 @@ interface HoarderBookmark {
 
 interface HoarderResponse {
   bookmarks: HoarderBookmark[];
-  total: number;
-  hasMore: boolean;
+  nextCursor: string | null;
 }
 
 export default class HoarderPlugin extends Plugin {
@@ -140,13 +139,16 @@ export default class HoarderPlugin extends Plugin {
   }
 
   async fetchBookmarks(
-    page: number = 1,
+    cursor: string | null = null,
     limit: number = 100,
   ): Promise<HoarderResponse> {
     const queryParams = new URLSearchParams({
-      page: page.toString(),
       limit: limit.toString(),
     });
+    
+    if (cursor) {
+      queryParams.append('cursor', cursor);
+    }
 
     if (this.settings.excludeArchived) {
       queryParams.append("archived", "false");
@@ -316,13 +318,14 @@ export default class HoarderPlugin extends Plugin {
         await this.app.vault.createFolder(folderPath);
       }
 
-      let page = 1;
+      let cursor: string | null = null;
       let hasMore = true;
 
       while (hasMore) {
-        const result = await this.fetchBookmarks(page);
+        const result = await this.fetchBookmarks(cursor);
         const bookmarks = result.bookmarks || [];
-        hasMore = result.hasMore;
+        cursor = result.nextCursor;
+        hasMore = cursor !== null;
 
         // Process each bookmark
         for (const bookmark of bookmarks) {
