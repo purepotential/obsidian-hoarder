@@ -648,7 +648,7 @@ summary: ${escapeYaml(bookmark.summary)}
       const turndown = require('turndown');
       const punycode = require('punycode/');
 
-      global.punycode = punycode;
+      (global as any).punycode = punycode;
       const dom = new jsdom.JSDOM(bookmark.content.htmlContent);
       const turndownService = new turndown({
         headingStyle: 'atx',
