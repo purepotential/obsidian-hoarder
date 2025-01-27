@@ -11,7 +11,8 @@ import HoarderPlugin from "./main";
 
 export interface HoarderSettings {
   apiKey: string;
-  apiEndpoint: string;
+  apiBaseUrl: string;
+  apiPath: string;
   syncFolder: string;
   attachmentsFolder: string;
   syncIntervalMinutes: number;
@@ -26,7 +27,8 @@ export interface HoarderSettings {
 
 export const DEFAULT_SETTINGS: HoarderSettings = {
   apiKey: "",
-  apiEndpoint: "https://api.hoarder.app/api/v1",
+  apiBaseUrl: "https://api.hoarder.app",
+  apiPath: "/api/v1",
   syncFolder: "Hoarder",
   attachmentsFolder: "Hoarder/attachments",
   syncIntervalMinutes: 60,
@@ -117,19 +119,35 @@ export class HoarderSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Api endpoint")
+      .setName("API Base URL")
       .setDesc(
-        "Hoarder API endpoint URL (default: https://api.hoarder.app/api/v1)",
+        "Base URL for Hoarder API (default: https://api.hoarder.app)",
       )
       .addText((text) =>
         text
-          .setPlaceholder("Enter API endpoint")
-          .setValue(this.plugin.settings.apiEndpoint)
+          .setPlaceholder("Enter API base URL")
+          .setValue(this.plugin.settings.apiBaseUrl)
           .onChange(async (value) => {
-            this.plugin.settings.apiEndpoint = value;
+            this.plugin.settings.apiBaseUrl = value;
             await this.plugin.saveSettings();
           })
           .inputEl.addClass("hoarder-wide-input"),
+      );
+
+    new Setting(containerEl)
+      .setName("API Path")
+      .setDesc(
+        "API endpoint path (default: /api/v1)",
+      )
+      .addText((text) =>
+        text
+          .setPlaceholder("Enter API path")
+          .setValue(this.plugin.settings.apiPath)
+          .onChange(async (value) => {
+            this.plugin.settings.apiPath = value;
+            await this.plugin.saveSettings();
+          })
+          .inputEl.addClass("hoarder-medium-input"),
       );
 
     new Setting(containerEl)

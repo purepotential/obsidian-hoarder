@@ -157,7 +157,7 @@ export default class HoarderPlugin extends Plugin {
     }
 
     const response = await fetch(
-      `${this.settings.apiEndpoint}/bookmarks?${queryParams.toString()}`,
+      `${this.settings.apiBaseUrl}${this.settings.apiPath}/bookmarks?${queryParams.toString()}`,
       {
         headers: {
           Authorization: `Bearer ${this.settings.apiKey}`,
@@ -265,7 +265,7 @@ export default class HoarderPlugin extends Plugin {
   ): Promise<boolean> {
     try {
       const response = await fetch(
-        `${this.settings.apiEndpoint}/bookmarks/${bookmarkId}`,
+        `${this.settings.apiBaseUrl}${this.settings.apiPath}/bookmarks/${bookmarkId}`,
         {
           method: "PATCH",
           headers: {
@@ -541,7 +541,7 @@ export default class HoarderPlugin extends Plugin {
     // Helper function to get asset URL
     const getAssetUrl = (assetId: string): string => {
       // Remove /v1 and any trailing slashes from the API endpoint
-      const baseUrl = this.settings.apiEndpoint.replace(/\/v1\/?$/, "");
+      const baseUrl = this.settings.apiBaseUrl;
       return `${baseUrl}/assets/${assetId}`;
     };
 
