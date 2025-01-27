@@ -636,8 +636,12 @@ summary: ${escapeYaml(bookmark.summary)}
       content += `\n## Description\n\n${description}\n`;
     }
 
-    // Always add Notes section
-    content += `\n## Notes\n\n${bookmark.note || ""}\n`;
+    // Add Notes section with optional content
+    content += "\n## Notes\n\n";
+    if (this.settings.importContent && bookmark.content.type === "link" && bookmark.content.htmlContent) {
+      content += `${bookmark.content.htmlContent}\n\n---\n\n`;
+    }
+    content += `${bookmark.note || ""}\n`;
 
     // Add link if available (and it's not just an image)
     if (url && bookmark.content.type !== "asset") {

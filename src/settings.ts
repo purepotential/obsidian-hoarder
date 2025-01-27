@@ -21,6 +21,7 @@ export interface HoarderSettings {
   onlyFavorites: boolean;
   syncNotesToHoarder: boolean;
   excludedTags: string[];
+  importContent: boolean;
 }
 
 export const DEFAULT_SETTINGS: HoarderSettings = {
@@ -35,6 +36,7 @@ export const DEFAULT_SETTINGS: HoarderSettings = {
   onlyFavorites: false,
   syncNotesToHoarder: true,
   excludedTags: [],
+  importContent: false,
 };
 
 class FolderSuggest extends AbstractInputSuggest<TFolder> {
@@ -226,6 +228,18 @@ export class HoarderSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.syncNotesToHoarder)
           .onChange(async (value) => {
             this.plugin.settings.syncNotesToHoarder = value;
+            await this.plugin.saveSettings();
+          }),
+      );
+
+    new Setting(containerEl)
+      .setName("Import content")
+      .setDesc("Import bookmark's HTML content into the note section")
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.importContent)
+          .onChange(async (value) => {
+            this.plugin.settings.importContent = value;
             await this.plugin.saveSettings();
           }),
       );
