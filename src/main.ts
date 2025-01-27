@@ -396,8 +396,6 @@ export default class HoarderPlugin extends Plugin {
             totalBookmarks++;
           }
         }
-
-        page++;
       }
 
       // Update last sync timestamp
