@@ -505,7 +505,7 @@ export default class HoarderPlugin extends Plugin {
       // Download the image
       const headers: Record<string, string> = {};
       // Check if this is a Hoarder asset URL by checking if it's from the same domain
-      const apiDomain = new URL(this.settings.apiEndpoint).origin;
+      const apiDomain = new URL(this.settings.apiBaseUrl).origin;
       if (url.startsWith(apiDomain)) {
         headers["Authorization"] = `Bearer ${this.settings.apiKey}`;
       }
