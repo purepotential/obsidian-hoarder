@@ -639,7 +639,15 @@ summary: ${escapeYaml(bookmark.summary)}
     // Add Notes section with optional content
     content += "\n## Notes\n\n";
     if (this.settings.importContent && bookmark.content.type === "link" && bookmark.content.htmlContent) {
-      content += `${bookmark.content.htmlContent}\n\n---\n\n`;
+      const TurndownService = require('turndown');
+      const turndownService = new TurndownService({
+        headingStyle: 'atx',
+        hr: '---',
+        bulletListMarker: '-',
+        codeBlockStyle: 'fenced'
+      });
+      const markdownContent = turndownService.turndown(bookmark.content.htmlContent);
+      content += `${markdownContent}\n\n---\n\n`;
     }
     content += `${bookmark.note || ""}\n`;
 
